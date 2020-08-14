@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+import sys
+import os
+import json
+import requests
+import argparse
+import subprocess
+from python_hosts import Hosts, HostsEntry
+
+# Important variables
+API_KEY = {'api_token': "VcDU1XdxT6Ww35GqDwx9rKDJ1LrJjGruBuwv4buude1tHjncYomStZsb7Cct"}
+HEADERS = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.98 Safari/537.36',
+        'Referer': 'https://www.hackthebox.eu/'}
+r = requests.get("http://www.hackthebox.eu/api/machines/get/all", params=API_KEY, headers=HEADERS)
+
+#print(r.json().keys())
+
+
+# Functions
+def list_all():
+    for machine in r.json():
+        print("Machine id: {m_id}, name: {name}, os: {os}, ip: {ip}, rating: {rating}".format(m_id=machine["id"], name=machine["name"], os=machine["os"], ip=machine["ip"], rating=machine["rating"]))
+
+def list_available():
+    for machine in r.json():
+        if not machine["retired"]:
+            print("Machine id: {m_id}, name: {name}, os: {os}, ip: {ip}, rating: {rating}".format(m_id=machine["id"], name=machine["name"], os=machine["os"], ip=machine["ip"], rating=machine["rating"]))
+
+def view_hosts():
+    hosts = open("/etc/hosts", "r")
+    for lines in hosts:
+        print(lines)
+    hosts.close()
+
+def add_machine(m_name):
+    h = Hosts()
+    for machine in r.json():
+        if machine['name'] == m_name:
+            new_entry = HostsEntry(entry_type='ipv4', address=machine['ip'], names=[machine['name'].lower() + '.htb'])
+
+    h.add([new_entry])
+    h.write()
+
+
+def remove_machine(m_name):
+    h = Hosts()
+    h.remove_all_matching(name=m_name + '.htb')
+
+# Argument parsing
+parser = argparse.ArgumentParser(prog='htb-helper', description='A tool for managing HackTheBox machines')
+
+parser.add_argument('-L', '--list_all', action="store_true", help="List all machines on HTB")
+parser.add_argument('-l', '--list_available', action="store_true", help="List non-retired machines")
+parser.add_argument('-a','--add', action='store_true', help='Adds machine to hosts file')
+parser.add_argument('-r','--remove', action='store_true', help='Removes a machine from hosts file')
+parser.add_argument('--view-hosts', action='store_true', help="Prints the hosts file")
+parser.add_argument('machine_name', nargs='?', type=str, help="Use when removing machine from hosts")
+
+args = parser.parse_args()
+
+if args.list_all:
+    list_all()
+    sys.exit()
+
+if args.list_available:
+    list_available()
+    sys.exit()
+
+if args.view_hosts:
+    view_hosts()
+    sys.exit()
+
+if args.add:
+    add_machine(args.machine_name)
+    sys.exit()
+
+if args.remove:
+    remove_machine(args.machine_name)
+    sys.exit()
